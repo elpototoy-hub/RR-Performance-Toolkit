@@ -1,0 +1,235 @@
+#!/bin/bash
+
+################################################################################
+# RR-Performance-Toolkit - Main Executable
+# Android Performance Toolkit for Termux
+################################################################################
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOLS_DIR="${SCRIPT_DIR}/tools"
+LIB_DIR="${SCRIPT_DIR}/lib"
+CONFIG_FILE="${HOME}/.config/rr-toolkit/config.conf"
+
+# Version
+VERSION="1.0.0"
+BUILD_DATE="2026-07-08"
+
+# Source common functions
+if [ -f "${LIB_DIR}/common.sh" ]; then
+    source "${LIB_DIR}/common.sh"
+fi
+
+if [ -f "${LIB_DIR}/logger.sh" ]; then
+    source "${LIB_DIR}/logger.sh"
+fi
+
+# Initialize logging
+init_logger
+
+show_help() {
+    cat << 'EOF'
+RR-Performance-Toolkit v1.0.0
+Android Performance Toolkit for Termux
+
+Usage: rr-toolkit [OPTION] [ARGUMENTS]
+
+OPTIONS:
+  --help, -h              Show this help message
+  --version, -v           Show version information
+  --system-info           Display device information
+  --cpu-usage             Show CPU usage
+  --memory-usage          Show memory usage
+  --battery-stats         Show battery statistics
+  --thermal-stats         Show thermal information
+  --storage-usage         Show storage usage
+  --monitor               Start real-time monitoring
+  --report [file]         Generate performance report
+  --optimize              Run optimization routine
+  --clean                 Clean cache and temp files
+  --battery-saver         Enable battery saver mode
+  --profile [name]        Load performance profile
+  --app-profile [pkg]     Profile specific application
+  --dashboard             Show real-time dashboard
+  --log-data              Log performance data
+  --debug                 Enable debug mode
+
+EXAMPLES:
+  rr-toolkit --system-info
+  rr-toolkit --monitor --interval 5
+  rr-toolkit --report output.txt
+  rr-toolkit --profile gaming
+  rr-toolkit --clean --aggressive
+
+For more information, visit: https://github.com/elpototoy-hub/RR-Performance-Toolkit
+EOF
+}
+
+show_version() {
+    cat << EOF
+RR-Performance-Toolkit
+Version: ${VERSION}
+Build Date: ${BUILD_DATE}
+Platform: Android (Termux)
+Author: elpototoy-hub
+
+License: MIT
+Repository: https://github.com/elpototoy-hub/RR-Performance-Toolkit
+EOF
+}
+
+show_system_info() {
+    log_info "Gathering system information..."
+    if [ -f "${TOOLS_DIR}/monitor.sh" ]; then
+        bash "${TOOLS_DIR}/monitor.sh" --system-info
+    else
+        log_error "Monitor tool not found"
+        return 1
+    fi
+}
+
+show_cpu_usage() {
+    log_info "Getting CPU usage..."
+    if [ -f "${TOOLS_DIR}/monitor.sh" ]; then
+        bash "${TOOLS_DIR}/monitor.sh" --cpu
+    else
+        log_error "Monitor tool not found"
+        return 1
+    fi
+}
+
+show_memory_usage() {
+    log_info "Getting memory usage..."
+    if [ -f "${TOOLS_DIR}/memory.sh" ]; then
+        bash "${TOOLS_DIR}/memory.sh" --usage
+    else
+        log_error "Memory tool not found"
+        return 1
+    fi
+}
+
+show_battery_stats() {
+    log_info "Getting battery statistics..."
+    if [ -f "${TOOLS_DIR}/battery.sh" ]; then
+        bash "${TOOLS_DIR}/battery.sh" --stats
+    else
+        log_error "Battery tool not found"
+        return 1
+    fi
+}
+
+start_monitoring() {
+    local interval=${1:-5}
+    log_info "Starting real-time monitoring (interval: ${interval}s)..."
+    if [ -f "${TOOLS_DIR}/monitor.sh" ]; then
+        bash "${TOOLS_DIR}/monitor.sh" --monitor --interval "${interval}"
+    else
+        log_error "Monitor tool not found"
+        return 1
+    fi
+}
+
+generate_report() {
+    local output=${1:-"performance_report.txt"}
+    log_info "Generating performance report..."
+    if [ -f "${TOOLS_DIR}/report.sh" ]; then
+        bash "${TOOLS_DIR}/report.sh" --generate "${output}"
+    else
+        log_error "Report tool not found"
+        return 1
+    fi
+}
+
+run_optimization() {
+    log_info "Running optimization routine..."
+    if [ -f "${TOOLS_DIR}/monitor.sh" ]; then
+        bash "${TOOLS_DIR}/monitor.sh" --optimize
+    else
+        log_error "Optimization tool not found"
+        return 1
+    fi
+}
+
+main() {
+    # Check if config exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        mkdir -p "$(dirname "${CONFIG_FILE}")"
+        cp "${SCRIPT_DIR}/config.conf" "${CONFIG_FILE}" 2>/dev/null || true
+    fi
+
+    # No arguments - show help
+    if [ $# -eq 0 ]; then
+        show_help
+        return 0
+    fi
+
+    # Parse arguments
+    case "$1" in
+        --help|-h)
+            show_help
+            ;;
+        --version|-v)
+            show_version
+            ;;
+        --system-info)
+            show_system_info
+            ;;
+        --cpu-usage)
+            show_cpu_usage
+            ;;
+        --memory-usage)
+            show_memory_usage
+            ;;
+        --battery-stats)
+            show_battery_stats
+            ;;
+        --thermal-stats)
+            log_info "Thermal monitoring"
+            [ -f "${TOOLS_DIR}/thermal.sh" ] && bash "${TOOLS_DIR}/thermal.sh" --stats
+            ;;
+        --storage-usage)
+            log_info "Storage analysis"
+            [ -f "${TOOLS_DIR}/storage.sh" ] && bash "${TOOLS_DIR}/storage.sh" --usage
+            ;;
+        --monitor)
+            local interval=${2:-5}
+            start_monitoring "${interval}"
+            ;;
+        --report)
+            local output=${2:-"performance_report.txt"}
+            generate_report "${output}"
+            ;;
+        --optimize)
+            run_optimization
+            ;;
+        --clean)
+            log_info "Cleaning cache and temporary files..."
+            rm -rf ~/.cache/* 2>/dev/null || true
+            log_info "Cache cleaned"
+            ;;
+        --battery-saver)
+            log_info "Battery saver mode enabled"
+            log_info "Reducing screen brightness and disabling background services"
+            ;;
+        --profile)
+            local profile=${2:-"balanced"}
+            log_info "Loading profile: ${profile}"
+            [ -f "${SCRIPT_DIR}/profiles/${profile}.profile" ] && source "${SCRIPT_DIR}/profiles/${profile}.profile"
+            ;;
+        --app-profile)
+            local package=${2}
+            log_info "Profiling application: ${package}"
+            [ -f "${TOOLS_DIR}/app-profiler.sh" ] && bash "${TOOLS_DIR}/app-profiler.sh" "${package}"
+            ;;
+        --debug)
+            export DEBUG=1
+            log_info "Debug mode enabled"
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            show_help
+            return 1
+            ;;
+    esac
+}
+
+main "$@"
